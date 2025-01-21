@@ -142,7 +142,7 @@ param redisCacheLocation string = resourceGroup().location
 param redisCacheName string = 'redisCache'
 
 @description('SKU of the Redis Enterprise Cache')
-param redisCacheSKU string = 'Enterprise_E5'
+param redisCacheSKU string = 'Standard_C_1' // 'Enterprise_E1' // 'Enterprise_E5'
 
 @description('Capacity of the Redis Enterprise Cache')
 param redisCacheCapacity int = 2
@@ -206,42 +206,42 @@ resource apimService 'Microsoft.ApiManagement/service@2023-05-01-preview' = {
 
 // semantic-caching: additions BEGIN
 
-resource redisEnterprise 'Microsoft.Cache/redisEnterprise@2022-01-01' = {
-  name: '${redisCacheName}-${resourceSuffix}'
-  location: redisCacheLocation
-  sku: {
-    name: redisCacheSKU
-    capacity: redisCacheCapacity
-  }
-}
+// resource redisEnterprise 'Microsoft.Cache/redisEnterprise@2022-01-01' = {
+//   name: '${redisCacheName}-${resourceSuffix}'
+//   location: redisCacheLocation
+//   sku: {
+//     name: redisCacheSKU
+//     capacity: redisCacheCapacity
+//   }
+// }
 
-resource redisCache 'Microsoft.Cache/redisEnterprise/databases@2022-01-01' = {
-  name: 'default'
-  parent: redisEnterprise
-  properties: {
-    evictionPolicy: redisEvictionPolicy
-    clusteringPolicy: 'EnterpriseCluster'
-    modules: [
-      {
-        name: 'RediSearch'
-      }
-    ]
-    port: redisPort
-  }
-}
+// resource redisCache 'Microsoft.Cache/redisEnterprise/databases@2022-01-01' = {
+//   name: 'default'
+//   parent: redisEnterprise
+//   properties: {
+//     evictionPolicy: redisEvictionPolicy
+//     clusteringPolicy: 'EnterpriseCluster'
+//     modules: [
+//       {
+//         name: 'RediSearch'
+//       }
+//     ]
+//     port: redisPort
+//   }
+// }
 
 resource apimCache 'Microsoft.ApiManagement/service/caches@2021-12-01-preview' = {
   name: 'Default'
   parent: apimService
   properties: {
-    connectionString: '${redisEnterprise.properties.hostName}:${redisPort},password=${redisCache.listKeys().primaryKey},ssl=True,abortConnect=False'
+    connectionString: 'redis-301.redis.cache.windows.net:6380,password=B5r3kpxNkhtqPET4IkDiVgjr0um4FscgyAzCaLNH4AQ=,ssl=True,abortConnect=False' // '${redisEnterprise.properties.hostName}:${redisPort},password=${redisCache.listKeys().primaryKey},ssl=True,abortConnect=False'
     useFromLocation: 'Default'
-    description: redisEnterprise.properties.hostName
+    description: 'cache' // redisEnterprise.properties.hostName
   }
 }
 
 resource embeddingsDeployment 'Microsoft.CognitiveServices/accounts/deployments@2023-05-01'  =  [for (config, i) in openAIConfig: if(length(openAIConfig) > 0) {
-  name: '${embeddingsDeploymentName}-${redisCache.name}'
+  name: '${embeddingsDeploymentName}-${redisCacheName}' // '${embeddingsDeploymentName}-${redisCache.name}'
   parent: cognitiveServices[i]
   properties: {
     model: {
@@ -261,7 +261,7 @@ resource backendEmbeddings 'Microsoft.ApiManagement/service/backends@2023-05-01-
   parent: apimService
   properties: {
     description: 'Embeddings Backend'
-    url: '${cognitiveServices[0].properties.endpoint}/openai/deployments/${embeddingsDeploymentName}-${redisCache.name}/embeddings'
+    url: '${cognitiveServices[0].properties.endpoint}/openai/deployments/${embeddingsDeploymentName}-${redisCacheName}/embeddings' // '${cognitiveServices[0].properties.endpoint}/openai/deployments/${embeddingsDeploymentName}-${redisCache.name}/embeddings'
     protocol: 'http'
   }
 }

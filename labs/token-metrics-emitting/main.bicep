@@ -219,7 +219,7 @@ resource backendOpenAI 'Microsoft.ApiManagement/service/backends@2023-05-01-prev
   parent: apimService
   properties: {
     description: 'backend description'
-    url: '${cognitiveServices[i].properties.endpoint}/openai'
+    url: '${cognitiveServices[i].properties.endpoint}openai'
     protocol: 'http'
     circuitBreaker: {
       rules: [
@@ -344,7 +344,7 @@ resource apimSubscription3 'Microsoft.ApiManagement/service/subscriptions@2023-0
 }
 
 
-// buult-in logging: additions BEGIN
+// built-in logging: additions BEGIN
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2021-12-01-preview' = {
   name: '${logAnalyticsName}-${resourceSuffix}'
