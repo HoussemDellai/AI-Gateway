@@ -29,43 +29,30 @@ resource "azurerm_cognitive_deployment" "gpt-4o" {
   cognitive_account_id = azurerm_ai_services.ai-services[each.key].id
 
   sku {
-    name     = "GlobalStandard" # "GlobalStandard" # "Standard" # DataZoneStandard, GlobalBatch, GlobalStandard and ProvisionedManaged
+    name     = "Standard" # "GlobalStandard" # "Standard" # DataZoneStandard, GlobalBatch, GlobalStandard and ProvisionedManaged
     capacity = var.openai_model_capacity
   }
 
   model {
     format  = "OpenAI"
-    name    = var.openai_model_name    # "gpt-4o"
-    version = var.openai_model_version # "2024-08-06"
+    name    = var.openai_model_name
+    version = var.openai_model_version
   }
 }
 
-# Terraform azurerm provider doesn't support yet creating API Management instances with v2 SKU.
-resource "azapi_resource" "apim" {
-  type                      = "Microsoft.ApiManagement/service@2024-06-01-preview"
-  name                      = "${var.apim_resource_name}-${random_string.random.result}"
-  parent_id                 = azurerm_resource_group.rg.id
-  location                  = var.apim_resource_location # SKU BasicV2 is not yet supported in the region Sweden Central
-  schema_validation_enabled = true
+resource "azurerm_api_management" "apim" {
+  name                          = "${var.apim_resource_name}-${random_string.random.result}"
+  location                      = azurerm_resource_group.rg.location
+  resource_group_name           = azurerm_resource_group.rg.name
+  publisher_name                = "My Company"
+  publisher_email               = "noreply@microsoft.com"
+  sku_name                      = "StandardV2_1" # Consumption, Developer, Basic, BasicV2, Standard, StandardV2, Premium and PremiumV2
+  virtual_network_type          = "None"         # None, External, Internal
+  public_network_access_enabled = true           # false applies only when using private endpoint as the exclusive access method
 
   identity {
     type = "SystemAssigned"
   }
-
-  body = {
-    sku = {
-      name     = var.apim_sku
-      capacity = 1
-    }
-    properties = {
-      publisherEmail      = "noreply@microsoft.com"
-      publisherName       = "Microsoft"
-      virtualNetworkType  = "None"
-      publicNetworkAccess = "Enabled"
-    }
-  }
-
-  response_export_values = ["*"]
 }
 
 resource "azurerm_role_assignment" "Cognitive-Services-OpenAI-User" {
@@ -73,13 +60,13 @@ resource "azurerm_role_assignment" "Cognitive-Services-OpenAI-User" {
 
   scope                = azurerm_ai_services.ai-services[each.key].id
   role_definition_name = "Cognitive Services OpenAI User"
-  principal_id         = azapi_resource.apim.identity.0.principal_id
+  principal_id         = azurerm_api_management.apim.identity.0.principal_id
 }
 
 resource "azurerm_api_management_api" "apim-api-openai" {
   name                  = "apim-api-openai"
   resource_group_name   = azurerm_resource_group.rg.name
-  api_management_name   = azapi_resource.apim.name
+  api_management_name   = azurerm_api_management.apim.name
   revision              = "1"
   description           = "Azure OpenAI APIs for completions and search"
   display_name          = "OpenAI"
@@ -105,7 +92,7 @@ resource "azurerm_api_management_backend" "apim-backend-openai" {
 
   name                = each.value.name
   resource_group_name = azurerm_resource_group.rg.name
-  api_management_name = azapi_resource.apim.name
+  api_management_name = azurerm_api_management.apim.name
   protocol            = "http"
   url                 = "${azurerm_ai_services.ai-services[each.key].endpoint}openai"
 
@@ -129,7 +116,7 @@ resource "azurerm_api_management_backend" "apim-backend-openai" {
 resource "azapi_resource" "apim-backend-pool-openai" {
   type                      = "Microsoft.ApiManagement/service/backends@2023-09-01-preview"
   name                      = "apim-backend-pool"
-  parent_id                 = azapi_resource.apim.id
+  parent_id                 = azurerm_api_management.apim.id
   schema_validation_enabled = false
 
   body = {
@@ -159,7 +146,7 @@ resource "azurerm_api_management_api_policy" "apim-openai-policy-openai" {
 
 resource "azurerm_api_management_subscription" "apim-api-subscription-openai" {
   display_name        = "apim-api-subscription-openai"
-  api_management_name = azapi_resource.apim.name
+  api_management_name = azurerm_api_management.apim.name
   resource_group_name = azurerm_resource_group.rg.name
   api_id              = replace(azurerm_api_management_api.apim-api-openai.id, "/;rev=.*/", "")
   allow_tracing       = true

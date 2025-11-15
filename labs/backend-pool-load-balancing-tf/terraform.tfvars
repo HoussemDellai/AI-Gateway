@@ -1,6 +1,6 @@
 
 resource_group_name     = "lab-backend-pool-load-balancing-tf"
-resource_group_location = "westeurope"
+resource_group_location = "swedencentral"
 apim_sku                = "BasicV2"
 openai_deployment_name  = "gpt-4o-mini"
 openai_model_name       = "gpt-4o-mini"
@@ -10,7 +10,7 @@ openai_api_version      = "2024-02-01"
 openai_config = {
   openai-uks = {
     name     = "openai1",
-    location = "uksouth",
+    location = "eastus",
     priority = 1,
     weight   = 100
   },
@@ -22,7 +22,7 @@ openai_config = {
   },
   openai-frc = {
     name     = "openai3",
-    location = "francecentral",
+    location = "westus",
     priority = 2,
     weight   = 50
   }
